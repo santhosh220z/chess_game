@@ -49,7 +49,7 @@ export default function Square({
       {piece && (
         <div className="piece">
           <span className={piece.color === 'w' ? 'white' : 'black'}>
-            {pieceSymbol(piece.color, piece.type)}
+            {pieceSymbol(piece.type)}
           </span>
         </div>
       )}

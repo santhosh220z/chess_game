@@ -23,7 +23,7 @@ export default function PromotionDialog({ color, onSelect, onCancel }: Promotion
               aria-label={`Promote to ${p}`}
             >
               <span className={color === 'w' ? 'white' : 'black'}>
-                {pieceSymbol(color, p)}
+                {pieceSymbol(p)}
               </span>
             </button>
           ))}

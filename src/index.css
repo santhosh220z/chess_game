@@ -1,21 +1,20 @@
 /* Chess Classic design tokens */
 :root {
-  --bg: #14161a;
-  --surface: #20242b;
-  --surface-2: #2a2f37;
-  --text-primary: #e8eaed;
-  --text-secondary: #9aa3af;
-  --accent: #7b9ed0;
-  --accent-hover: #6b8fc2;
-  --danger: #e0604f;
-  --square-light: #4d5b73;
-  --square-dark: #2f3a4d;
-  --last-move: rgba(255, 213, 79, 0.4);
-  --selected: rgba(123, 158, 208, 0.5);
-  --shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-  --border: #3a414b;
+  --bg: #f5f1e8;
+  --surface: #ffffff;
+  --surface-2: #eef4e4;
+  --text-primary: #232b33;
+  --text-secondary: #5f6b76;
+  --accent: #667d3f;
+  --accent-hover: #556a34;
+  --danger: #c0392b;
+  --square-light: #e9dfbd;
+  --square-dark: #7a8a4f;
+  --last-move: rgba(248, 222, 126, 0.6);
+  --selected: rgba(120, 140, 80, 0.45);
+  --shadow: 0 8px 30px rgba(35, 43, 51, 0.12);
+  --border: #d9d2c2;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  color-scheme: dark;
 }
 
 * {
@@ -176,17 +175,21 @@ h3 {
   font-size: min(9vw, 52px);
   line-height: 1;
   display: block;
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.25));
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
 }
 
 .piece.white span {
   color: #ffffff;
-  -webkit-text-stroke: 1.2px #333;
+  text-shadow:
+    -1px -1px 0 rgba(90, 105, 60, 0.6),
+    1px -1px 0 rgba(90, 105, 60, 0.6),
+    -1px 1px 0 rgba(90, 105, 60, 0.6),
+    1px 1px 0 rgba(90, 105, 60, 0.6),
+    0 2px 3px rgba(0, 0, 0, 0.25);
 }
 
 .piece.black span {
-  color: #0f1114;
-  -webkit-text-stroke: 1.2px #000;
+  color: #16181d;
   /* Rotate black pieces to face Black's side (top of the board), so each
      side's pieces point toward the player who owns them. */
   transform: rotate(180deg);
@@ -367,7 +370,7 @@ h3 {
 .game-over-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(31, 41, 55, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -415,13 +418,16 @@ h3 {
 }
 
 .promotion-option .white {
-  color: #fff;
-  -webkit-text-stroke: 1.2px #333;
+  color: #ffffff;
+  text-shadow:
+    -1px -1px 0 rgba(90, 105, 60, 0.6),
+    1px -1px 0 rgba(90, 105, 60, 0.6),
+    -1px 1px 0 rgba(90, 105, 60, 0.6),
+    1px 1px 0 rgba(90, 105, 60, 0.6);
 }
 
 .promotion-option .black {
-  color: #0f1114;
-  -webkit-text-stroke: 1.2px #000;
+  color: #16181d;
   transform: rotate(180deg);
 }
 
@@ -571,27 +577,27 @@ h3 {
 }
 
 .rating-badge.brilliant {
-  background: rgba(80, 200, 130, 0.18);
-  color: #6fe3a0;
+  background: #d4f5e3;
+  color: #0f7b3a;
 }
 
 .rating-badge.good {
-  background: rgba(90, 160, 220, 0.18);
-  color: #7cc0ea;
+  background: #e3f0fa;
+  color: #1d6ba8;
 }
 
 .rating-badge.inaccuracy {
-  background: rgba(220, 180, 70, 0.18);
-  color: #e6c76a;
+  background: #fdf3d7;
+  color: #b8860b;
 }
 
 .rating-badge.mistake {
-  background: rgba(230, 130, 90, 0.18);
-  color: #f0a077;
+  background: #fde8e0;
+  color: #c0562f;
 }
 
 .rating-badge.blunder {
-  background: rgba(230, 90, 80, 0.22);
-  color: #f2877d;
+  background: #fbe0e0;
+  color: #c03028;
 }
 
