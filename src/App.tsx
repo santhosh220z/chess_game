@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Chess } from 'chess.js';
 import type { Move, PieceSymbol, Square } from 'chess.js';
 import Board from './components/Board';
 import SidePanel from './components/SidePanel';
 import PromotionDialog from './components/PromotionDialog';
 import GameOverBanner from './components/GameOverBanner';
-import type { AiRequest, AiResponse, Difficulty, GameOverInfo } from './types';
+import type { AiRequest, AiResponse, Difficulty, GameMode, GameOverInfo } from './types';
 
 type PendingPromotion = { from: Square; to: Square } | null;
 
@@ -69,7 +70,13 @@ export default function App() {
 
   const playerColor = 'w';
   const gameOver = analyzeGame(chess);
-  const isAiTurn = chess.turn() !== playerColor && !gameOver;
+
+  // Mode is chosen on the landing page and carried here via router state.
+  const location = useLocation();
+  const mode: GameMode = (location.state as { mode?: GameMode } | null)?.mode ?? 'ai';
+
+  // The computer only plays when the active side is not White (the human) in AI mode.
+  const isAiTurn = mode === 'ai' && chess.turn() !== playerColor && !gameOver;
 
   // Single shared AI worker, created once. `currentToken` is bumped on every new
   // AI request and on undo/new-game; a delayed response carrying a stale token
@@ -83,6 +90,9 @@ export default function App() {
     });
     worker.onmessage = (event: MessageEvent<{ ok: boolean; token: number; move?: AiResponse }>) => {
       const data = event.data;
+      // Always clear the "thinking" indicator once any reply arrives, even on
+      // a failure or a stale (superseded) request.
+      setThinking(false);
       if (!data.ok || !data.move) return;
       // Discard stale responses from superseded requests (e.g. after undo).
       if (data.token !== currentTokenRef.current) return;
@@ -100,7 +110,6 @@ export default function App() {
           return list;
         }
       });
-      setThinking(false);
     };
     worker.onerror = () => setThinking(false);
     workerRef.current = worker;
@@ -132,14 +141,20 @@ export default function App() {
     currentTokenRef.current += 1; // invalidate any in-flight AI response
     setMoves((list) => {
       const trimmed = list.slice();
-      if (trimmed.length > 0) trimmed.pop(); // undo AI's reply if any
-      if (trimmed.length > 0) trimmed.pop(); // undo the player's move
+      if (mode === 'ai') {
+        // AI mode: revert the AI reply and the player's move together.
+        if (trimmed.length > 0) trimmed.pop();
+        if (trimmed.length > 0) trimmed.pop();
+      } else {
+        // Two-player mode: revert a single move (undo between players).
+        if (trimmed.length > 0) trimmed.pop();
+      }
       return trimmed;
     });
     clearSelection();
     setPendingPromotion(null);
     setThinking(false);
-  }, [clearSelection]);
+  }, [clearSelection, mode]);
 
   const newGame = useCallback(() => {
     currentTokenRef.current += 1; // invalidate any in-flight AI response
@@ -183,7 +198,7 @@ export default function App() {
         return;
       }
 
-      if (piece && piece.color === playerColor) {
+      if (piece && (mode === 'ai' ? piece.color === playerColor : piece.color === chessRef.current.turn())) {
         setSelected(square);
         setLegalTargets(
           new Set(chessRef.current.moves({ square, verbose: true }).map((m) => m.to as string)),
@@ -192,7 +207,7 @@ export default function App() {
         clearSelection();
       }
     },
-    [selected, legalTargets, thinking, gameOver, pendingPromotion, isAiTurn, applyMove, clearSelection],
+    [selected, legalTargets, thinking, gameOver, pendingPromotion, isAiTurn, mode, applyMove, clearSelection],
   );
 
   const checkSquare = getCheckSquare(chess);
@@ -215,7 +230,10 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <h1>Chess</h1>
-        <p>Play against the computer</p>
+        <p>{mode === 'ai' ? 'Play against the computer' : '2 Players — pass and play'}</p>
+        <Link className="home-link" to="/">
+          Home
+        </Link>
       </header>
 
       <div className="layout">
@@ -231,17 +249,19 @@ export default function App() {
           />
 
           <div className="controls">
-            <div className="difficulty-group">
-              {(['easy', 'medium', 'hard'] as Difficulty[]).map((d) => (
-                <button
-                  key={d}
-                  className={`difficulty-btn ${difficulty === d ? 'active' : ''}`}
-                  onClick={() => setDifficulty(d)}
-                >
-                  {d.charAt(0).toUpperCase() + d.slice(1)}
-                </button>
-              ))}
-            </div>
+            {mode === 'ai' && (
+              <div className="difficulty-group">
+                {(['easy', 'medium', 'hard'] as Difficulty[]).map((d) => (
+                  <button
+                    key={d}
+                    className={`difficulty-btn ${difficulty === d ? 'active' : ''}`}
+                    onClick={() => setDifficulty(d)}
+                  >
+                    {d.charAt(0).toUpperCase() + d.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
             {thinking && <span className="captured-label">Computer is thinking…</span>}
           </div>
         </div>
@@ -258,7 +278,7 @@ export default function App() {
 
       {pendingPromotion && (
         <PromotionDialog
-          color="w"
+          color={chessRef.current.get(pendingPromotion.from)?.color ?? 'w'}
           onSelect={(piece) => {
             const p = pendingPromotion;
             setPendingPromotion(null);

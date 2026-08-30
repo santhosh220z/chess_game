@@ -197,7 +197,6 @@ h3 {
   flex-wrap: wrap;
   justify-content: center;
 }
-
 .difficulty-group {
   display: inline-flex;
   border-radius: 8px;
@@ -415,3 +414,92 @@ h3 {
   gap: 10px;
   justify-content: center;
 }
+
+/* Landing page */
+.landing {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+}
+
+.landing-card {
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 40px 44px;
+  text-align: center;
+  max-width: 560px;
+  width: 100%;
+}
+
+.landing-card h1 {
+  font-size: 2.8rem;
+  margin: 0 0 6px;
+  letter-spacing: -0.5px;
+}
+
+.landing-subtitle {
+  margin: 0 0 28px;
+  color: var(--text-secondary);
+}
+
+.mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 20px 24px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+
+.mode-card:hover {
+  border-color: var(--accent);
+  background: #fff;
+  transform: translateY(-2px);
+}
+
+.mode-icon {
+  font-size: 2.2rem;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.mode-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.mode-desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* Home link in the game header */
+.home-link {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.home-link:hover {
+  text-decoration: underline;
+}
+

@@ -172,25 +172,22 @@ function quiescence(
   const terminal = isTerminal(chess, maximizing);
   if (terminal !== null) return terminal;
 
-  // Stand-pat: if not in check, evaluate the current position as a lower bound.
-  if (!chess.inCheck()) {
-    const standPat = evaluate(chess);
-    if (maximizing) {
-      if (standPat >= beta) return standPat;
-      alpha = Math.max(alpha, standPat);
-    } else {
-      if (standPat <= alpha) return standPat;
-      beta = Math.min(beta, standPat);
-    }
-  }
+  // Stand-pat evaluation is only a valid baseline when not in check.
+  const standPat = chess.inCheck() ? null : evaluate(chess);
 
-  const captures = orderMoves(
-    chess.moves({ verbose: true }).filter((m) => m.captured || m.promotion),
-  );
+  // When in check, all evasions must be searched; otherwise only captures and
+  // promotions (which can change the material balance) are considered.
+  const moves = chess.inCheck()
+    ? orderMoves(chess.moves({ verbose: true }))
+    : orderMoves(
+        chess.moves({ verbose: true }).filter((m) => m.captured || m.promotion),
+      );
 
   if (maximizing) {
-    let best = -Infinity;
-    for (const move of captures) {
+    // `best` starts at the stand-pat value so a quiet (no-capture) position
+    // evaluates to its static score instead of ±Infinity.
+    let best = standPat !== null ? standPat : -Infinity;
+    for (const move of moves) {
       chess.move(move);
       best = Math.max(best, quiescence(chess, alpha, beta, false, ply + 1));
       chess.undo();
@@ -199,8 +196,8 @@ function quiescence(
     }
     return best;
   } else {
-    let best = Infinity;
-    for (const move of captures) {
+    let best = standPat !== null ? standPat : Infinity;
+    for (const move of moves) {
       chess.move(move);
       best = Math.min(best, quiescence(chess, alpha, beta, true, ply + 1));
       chess.undo();
@@ -343,3 +340,4 @@ export function bestMove(fen: string, difficulty: Difficulty): MoveRecord {
 export function getLegalMoves(chess: Chess, square: string): Square[] {
   return chess.moves({ square: square as Square, verbose: true }).map((m) => m.to) as Square[];
 }
+

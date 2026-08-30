@@ -1,5 +1,7 @@
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
+export type GameMode = 'ai' | 'two';
+
 export type GameOverKind = 'checkmate' | 'stalemate' | 'insufficient' | 'threefold' | 'fifty-move' | 'draw';
 
 export interface GameOverInfo {
