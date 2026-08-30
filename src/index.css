@@ -165,6 +165,9 @@ h3 {
 .piece.black span {
   color: #333333;
   -webkit-text-stroke: 1.2px #000;
+  /* Rotate black pieces to face Black's side (top of the board), so each
+     side's pieces point toward the player who owns them. */
+  transform: rotate(180deg);
 }
 
 .coord {
@@ -397,6 +400,7 @@ h3 {
 .promotion-option .black {
   color: #333;
   -webkit-text-stroke: 1.2px #000;
+  transform: rotate(180deg);
 }
 
 .game-over-card h2 {
