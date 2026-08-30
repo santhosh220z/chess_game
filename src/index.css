@@ -1,18 +1,21 @@
 /* Chess Classic design tokens */
 :root {
-  --bg: #f7f4ee;
-  --surface: #ffffff;
-  --text-primary: #1f2937;
-  --text-secondary: #6b7280;
-  --accent: #4a6fa5;
-  --accent-hover: #3d5f8c;
-  --danger: #c0392b;
-  --square-light: #f0d9b5;
-  --square-dark: #b58863;
-  --last-move: rgba(255, 213, 79, 0.55);
-  --selected: rgba(74, 111, 165, 0.4);
-  --shadow: 0 8px 30px rgba(31, 41, 55, 0.12);
+  --bg: #14161a;
+  --surface: #20242b;
+  --surface-2: #2a2f37;
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa3af;
+  --accent: #7b9ed0;
+  --accent-hover: #6b8fc2;
+  --danger: #e0604f;
+  --square-light: #4d5b73;
+  --square-dark: #2f3a4d;
+  --last-move: rgba(255, 213, 79, 0.4);
+  --selected: rgba(123, 158, 208, 0.5);
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  --border: #3a414b;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
 }
 
 * {
@@ -182,7 +185,7 @@ h3 {
 }
 
 .piece.black span {
-  color: #333333;
+  color: #0f1114;
   -webkit-text-stroke: 1.2px #000;
   /* Rotate black pieces to face Black's side (top of the board), so each
      side's pieces point toward the player who owns them. */
@@ -266,11 +269,11 @@ h3 {
 .btn.secondary {
   background: var(--surface);
   color: var(--text-primary);
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border);
 }
 
 .btn.secondary:hover {
-  background: #f3f4f6;
+  background: var(--surface-2);
 }
 
 /* Side panel */
@@ -302,7 +305,7 @@ h3 {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2px solid #333;
+  border: 2px solid var(--border);
 }
 
 .turn-marker.white {
@@ -314,7 +317,7 @@ h3 {
 }
 
 .turn-marker.active {
-  box-shadow: 0 0 0 4px rgba(74, 111, 165, 0.35);
+  box-shadow: 0 0 0 4px var(--selected);
 }
 
 .captured {
@@ -364,7 +367,7 @@ h3 {
 .game-over-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(31, 41, 55, 0.45);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -394,7 +397,7 @@ h3 {
 .promotion-option {
   width: 64px;
   height: 64px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
   font-size: 2.6rem;
@@ -407,7 +410,7 @@ h3 {
 }
 
 .promotion-option:hover {
-  background: #f3f4f6;
+  background: var(--surface-2);
   transform: scale(1.06);
 }
 
@@ -417,7 +420,7 @@ h3 {
 }
 
 .promotion-option .black {
-  color: #333;
+  color: #0f1114;
   -webkit-text-stroke: 1.2px #000;
   transform: rotate(180deg);
 }
@@ -481,9 +484,9 @@ h3 {
   align-items: flex-start;
   text-align: left;
   padding: 20px 24px;
-  border: 2px solid transparent;
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text-primary);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, transform 0.1s;
@@ -491,7 +494,7 @@ h3 {
 
 .mode-card:hover {
   border-color: var(--accent);
-  background: #fff;
+  background: var(--surface-2);
   transform: translateY(-2px);
 }
 
@@ -568,27 +571,27 @@ h3 {
 }
 
 .rating-badge.brilliant {
-  background: #d4f5e3;
-  color: #0f7b3a;
+  background: rgba(80, 200, 130, 0.18);
+  color: #6fe3a0;
 }
 
 .rating-badge.good {
-  background: #e3f0fa;
-  color: #1d6ba8;
+  background: rgba(90, 160, 220, 0.18);
+  color: #7cc0ea;
 }
 
 .rating-badge.inaccuracy {
-  background: #fdf3d7;
-  color: #b8860b;
+  background: rgba(220, 180, 70, 0.18);
+  color: #e6c76a;
 }
 
 .rating-badge.mistake {
-  background: #fde8e0;
-  color: #c0562f;
+  background: rgba(230, 130, 90, 0.18);
+  color: #f0a077;
 }
 
 .rating-badge.blunder {
-  background: #fbe0e0;
-  color: #c03028;
+  background: rgba(230, 90, 80, 0.22);
+  color: #f2877d;
 }
 
