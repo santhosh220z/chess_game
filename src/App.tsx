@@ -5,8 +5,7 @@ import Board from './components/Board';
 import SidePanel from './components/SidePanel';
 import PromotionDialog from './components/PromotionDialog';
 import GameOverBanner from './components/GameOverBanner';
-import { bestMove } from './engine/ai';
-import type { Difficulty, GameOverInfo } from './types';
+import type { AiRequest, AiResponse, Difficulty, GameOverInfo } from './types';
 
 type PendingPromotion = { from: Square; to: Square } | null;
 
@@ -72,27 +71,52 @@ export default function App() {
   const gameOver = analyzeGame(chess);
   const isAiTurn = chess.turn() !== playerColor && !gameOver;
 
+  // Single shared AI worker, created once. `currentToken` is bumped on every new
+  // AI request and on undo/new-game; a delayed response carrying a stale token
+  // is discarded so an in-flight move can't clobber a more recent state.
+  const workerRef = useRef<Worker | null>(null);
+  const currentTokenRef = useRef(0);
+
+  useEffect(() => {
+    const worker = new Worker(new URL('./engine/ai.worker.ts', import.meta.url), {
+      type: 'module',
+    });
+    worker.onmessage = (event: MessageEvent<{ ok: boolean; token: number; move?: AiResponse }>) => {
+      const data = event.data;
+      if (!data.ok || !data.move) return;
+      // Discard stale responses from superseded requests (e.g. after undo).
+      if (data.token !== currentTokenRef.current) return;
+      setMoves((list) => {
+        const next = new Chess();
+        for (const m of list) next.move(m);
+        try {
+          const move = next.move({
+            from: data.move!.from,
+            to: data.move!.to,
+            promotion: data.move!.promotion,
+          });
+          return [...list, move];
+        } catch {
+          return list;
+        }
+      });
+      setThinking(false);
+    };
+    worker.onerror = () => setThinking(false);
+    workerRef.current = worker;
+    return () => {
+      worker.terminate();
+      workerRef.current = null;
+    };
+  }, []);
+
   const triggerAi = useCallback(() => {
+    const worker = workerRef.current;
+    if (!worker) return;
+    const token = ++currentTokenRef.current;
     setThinking(true);
-    setTimeout(() => {
-      try {
-        const aiMove = bestMove(chessRef.current.fen(), difficulty);
-        setMoves((list) => {
-          const next = new Chess();
-          for (const m of list) next.move(m);
-          try {
-            const move = next.move({ from: aiMove.from, to: aiMove.to, promotion: aiMove.promotion });
-            return [...list, move];
-          } catch {
-            return list;
-          }
-        });
-      } catch {
-        // No legal moves — nothing to do.
-      } finally {
-        setThinking(false);
-      }
-    }, 300);
+    const req: AiRequest = { fen: chessRef.current.fen(), difficulty };
+    worker.postMessage({ ...req, token });
   }, [difficulty]);
 
   useEffect(() => {
@@ -105,6 +129,7 @@ export default function App() {
   }, []);
 
   const undo = useCallback(() => {
+    currentTokenRef.current += 1; // invalidate any in-flight AI response
     setMoves((list) => {
       const trimmed = list.slice();
       if (trimmed.length > 0) trimmed.pop(); // undo AI's reply if any
@@ -117,6 +142,7 @@ export default function App() {
   }, [clearSelection]);
 
   const newGame = useCallback(() => {
+    currentTokenRef.current += 1; // invalidate any in-flight AI response
     setMoves([]);
     clearSelection();
     setPendingPromotion(null);

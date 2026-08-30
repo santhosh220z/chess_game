@@ -115,6 +115,7 @@ function pieceSquareBonus(type: string, square: string, color: string, phase: 'm
 
 function evaluate(chess: Chess): number {
   let total = 0;
+  let nonPawnMaterial = 0;
   const board = chess.board();
 
   for (const row of board) {
@@ -122,30 +123,23 @@ function evaluate(chess: Chess): number {
       if (!cell) continue;
       const { type, color, square } = cell;
       const value = PIECE_VALUES[type] ?? 0;
-      total += color === 'w' ? value : -value;
-      total += color === 'w'
-        ? pieceSquareBonus(type, square, 'w', 'middle')
-        : -pieceSquareBonus(type, square, 'b', 'middle');
+      const sign = color === 'w' ? 1 : -1;
+      total += sign * value;
+      total += sign * pieceSquareBonus(type, square, color, 'middle');
+      if (type !== 'p' && type !== 'k') nonPawnMaterial += 1;
     }
   }
 
-  // Rough endgame detection: few non-pawn pieces left.
-  let minors = 0;
-  for (const row of board) {
-    for (const cell of row) {
-      if (cell && cell.type !== 'p' && cell.type !== 'k') minors += 1;
-    }
-  }
-  const phase: 'middle' | 'endgame' = minors <= 6 ? 'endgame' : 'middle';
-
-  for (const row of board) {
-    for (const cell of row) {
-      if (!cell) continue;
-      const { type, color, square } = cell;
-      if (type === 'k') {
+  const phase: 'middle' | 'endgame' = nonPawnMaterial <= 6 ? 'endgame' : 'middle';
+  if (phase === 'endgame') {
+    for (const row of board) {
+      for (const cell of row) {
+        if (!cell || cell.type !== 'k') continue;
+        const { color, square } = cell;
+        total += color === 'w' ? 1 : -1;
         total += color === 'w'
-          ? pieceSquareBonus(type, square, 'w', phase)
-          : -pieceSquareBonus(type, square, 'b', phase);
+          ? pieceSquareBonus('k', square, 'w', 'endgame')
+          : -pieceSquareBonus('k', square, 'b', 'endgame');
       }
     }
   }
@@ -155,10 +149,66 @@ function evaluate(chess: Chess): number {
 
 function orderMoves(moves: Move[]): Move[] {
   return moves.slice().sort((a, b) => {
-    const scoreA = (a.captured ? (PIECE_VALUES[a.captured] ?? 0) * 10 : 0) - (a.piece === 'p' ? 80 : 0);
-    const scoreB = (b.captured ? (PIECE_VALUES[b.captured] ?? 0) * 10 : 0) - (b.piece === 'p' ? 80 : 0);
+    const scoreA = (a.captured ? (PIECE_VALUES[a.captured] ?? 0) * 10 : 0) - (a.piece === 'p' ? 80 : 0) + (a.promotion ? 800 : 0);
+    const scoreB = (b.captured ? (PIECE_VALUES[b.captured] ?? 0) * 10 : 0) - (b.piece === 'p' ? 80 : 0) + (b.promotion ? 800 : 0);
     return scoreB - scoreA;
   });
+}
+
+function isTerminal(chess: Chess, maximizing: boolean): number | null {
+  if (chess.isCheckmate()) return maximizing ? -Infinity : Infinity;
+  if (chess.isDraw() || chess.isStalemate()) return 0;
+  return null;
+}
+
+function quiescence(
+  chess: Chess,
+  alpha: number,
+  beta: number,
+  maximizing: boolean,
+  ply: number,
+): number {
+  if (ply >= 32) return evaluate(chess);
+  const terminal = isTerminal(chess, maximizing);
+  if (terminal !== null) return terminal;
+
+  // Stand-pat: if not in check, evaluate the current position as a lower bound.
+  if (!chess.inCheck()) {
+    const standPat = evaluate(chess);
+    if (maximizing) {
+      if (standPat >= beta) return standPat;
+      alpha = Math.max(alpha, standPat);
+    } else {
+      if (standPat <= alpha) return standPat;
+      beta = Math.min(beta, standPat);
+    }
+  }
+
+  const captures = orderMoves(
+    chess.moves({ verbose: true }).filter((m) => m.captured || m.promotion),
+  );
+
+  if (maximizing) {
+    let best = -Infinity;
+    for (const move of captures) {
+      chess.move(move);
+      best = Math.max(best, quiescence(chess, alpha, beta, false, ply + 1));
+      chess.undo();
+      if (best > alpha) alpha = best;
+      if (beta <= alpha) break;
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (const move of captures) {
+      chess.move(move);
+      best = Math.min(best, quiescence(chess, alpha, beta, true, ply + 1));
+      chess.undo();
+      if (best < beta) beta = best;
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
 }
 
 function minimax(
@@ -168,14 +218,11 @@ function minimax(
   beta: number,
   maximizing: boolean,
 ): number {
-  if (chess.isCheckmate()) {
-    return maximizing ? -Infinity : Infinity;
-  }
-  if (chess.isDraw() || chess.isStalemate()) {
-    return 0;
-  }
+  const terminal = isTerminal(chess, maximizing);
+  if (terminal !== null) return terminal;
+
   if (depth === 0) {
-    return evaluate(chess);
+    return quiescence(chess, alpha, beta, maximizing, 0);
   }
 
   const moves = orderMoves(chess.moves({ verbose: true }));
@@ -203,14 +250,25 @@ function minimax(
   }
 }
 
-function getDepth(difficulty: Difficulty): number {
+function idealDepth(difficulty: Difficulty): number {
   switch (difficulty) {
     case 'easy':
-      return 1;
-    case 'medium':
       return 2;
+    case 'medium':
+      return 3;
     case 'hard':
-      return 4;
+      return 5;
+  }
+}
+
+function timeBudget(difficulty: Difficulty): number {
+  switch (difficulty) {
+    case 'easy':
+      return 350;
+    case 'medium':
+      return 800;
+    case 'hard':
+      return 2000;
   }
 }
 
@@ -221,38 +279,64 @@ export function bestMove(fen: string, difficulty: Difficulty): MoveRecord {
     throw new Error('No legal moves available');
   }
 
-  const depth = getDepth(difficulty);
-
   // Easy: with some probability just pick a random move.
-  if (difficulty === 'easy' && Math.random() < 0.5) {
+  if (difficulty === 'easy' && Math.random() < 0.4) {
     const pick = moves[Math.floor(Math.random() * moves.length)] as Move;
     return { from: pick.from as string, to: pick.to as string, promotion: pick.promotion };
   }
 
   const maximizing = chess.turn() === 'w';
   const ordered = orderMoves(moves);
-  let bestMove: Move | null = null;
+
+  // Iterative deepening with a wall-clock time budget. Deeper depths are only
+  // spent once a shallower search has a solid guess to tighten alpha/beta and
+  // improve move ordering.
+  const budget = timeBudget(difficulty);
+  const maxDepth = idealDepth(difficulty);
+  const deadline = Date.now() + budget;
+
+  let bestMove: Move = ordered[0] as Move;
   let bestScore = maximizing ? -Infinity : Infinity;
 
-  for (const move of ordered) {
-    chess.move(move);
-    const score = minimax(chess, depth - 1, -Infinity, Infinity, !maximizing);
-    chess.undo();
-    if (maximizing ? score > bestScore : score < bestScore) {
-      bestScore = score;
-      bestMove = move;
-    }
-  }
+  for (let depth = 1; depth <= maxDepth; depth++) {
+    // If we've run out of time, stop deepening and keep the last completed result.
+    if (Date.now() > deadline) break;
 
-  if (!bestMove) {
-    const pick = moves[0] as Move;
-    return { from: pick.from as string, to: pick.to as string, promotion: pick.promotion };
+    let curBest: Move | null = null;
+    let curScore = maximizing ? -Infinity : Infinity;
+    let alpha = -Infinity;
+    let beta = Infinity;
+
+    for (const move of ordered) {
+      if (Date.now() > deadline) break;
+      chess.move(move);
+      const score = minimax(chess, depth - 1, alpha, beta, !maximizing);
+      chess.undo();
+
+      if (maximizing ? score > curScore : score < curScore) {
+        curScore = score;
+        curBest = move;
+      }
+
+      if (maximizing) {
+        alpha = Math.max(alpha, curScore);
+      } else {
+        beta = Math.min(beta, curScore);
+      }
+    }
+
+    // Accept the completed depth as the authoritative result.
+    if (curBest) {
+      bestMove = curBest;
+      bestScore = curScore;
+    }
   }
 
   return {
     from: bestMove.from as string,
     to: bestMove.to as string,
     promotion: bestMove.promotion,
+    score: bestScore,
   };
 }
 

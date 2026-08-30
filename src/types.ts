@@ -12,4 +12,12 @@ export interface MoveRecord {
   from: string;
   to: string;
   promotion?: string;
+  score?: number;
 }
+
+export interface AiRequest {
+  fen: string;
+  difficulty: Difficulty;
+}
+
+export type AiResponse = MoveRecord;
