@@ -1,6 +1,6 @@
 import { Chess, Move } from 'chess.js';
 import type { Square } from 'chess.js';
-import type { Difficulty, MoveRecord } from '../types';
+import type { Difficulty, MoveRating, MoveRecord, RatedMove } from '../types';
 
 const PIECE_VALUES: Record<string, number> = {
   p: 100,
@@ -335,6 +335,79 @@ export function bestMove(fen: string, difficulty: Difficulty): MoveRecord {
     promotion: bestMove.promotion,
     score: bestScore,
   };
+}
+
+// Lightweight negamax for move rating: evaluates at the leaf with no
+// quiescence, keeping the full-game review fast enough to run on the UI.
+function searchBestScore(chess: Chess, depth: number): number {
+  const terminal = chess.isCheckmate() ? -Infinity : chess.isDraw() || chess.isStalemate() ? 0 : null;
+  if (terminal !== null) return terminal;
+  if (depth <= 0) return evaluate(chess);
+
+  let best = -Infinity;
+  for (const move of chess.moves({ verbose: true })) {
+    chess.move(move);
+    const score = -searchBestScore(chess, depth - 1);
+    chess.undo();
+    if (score > best) best = score;
+  }
+  return best;
+}
+
+function ratingFromLoss(loss: number): { rating: MoveRating } {
+  if (loss <= 20) return { rating: 'Brilliant' };
+  if (loss <= 60) return { rating: 'Good' };
+  if (loss <= 150) return { rating: 'Inaccuracy' };
+  if (loss <= 300) return { rating: 'Mistake' };
+  return { rating: 'Blunder' };
+}
+
+function rateMove(chess: Chess, move: Move, depth: number): RatedMove {
+  // Best achievable score from this position (in the mover's perspective).
+  const best = searchBestScore(chess, depth);
+
+  // Score of the played move: evaluate the resulting position from the
+  // opponent's view, then negate to get the mover's perspective.
+  chess.move(move);
+  const after = searchBestScore(chess, depth);
+  chess.undo();
+  const played = -after;
+
+  let loss: number;
+  if (!isFinite(best) || !isFinite(played)) {
+    // Mate scores involved: keeping/forcing a win is heart of the position,
+    // throwing it away is a blunder.
+    loss = best > 0 && played > 0 ? 0 : Infinity;
+  } else {
+    loss = Math.max(0, best - played);
+  }
+
+  const { rating } = ratingFromLoss(loss);
+  return {
+    from: move.from as string,
+    to: move.to as string,
+    promotion: move.promotion as string | undefined,
+    san: move.san,
+    rating,
+    loss: isFinite(loss) ? loss : 9999,
+  };
+}
+
+export function rateMoves(moves: MoveRecord[], depth = 2): RatedMove[] {
+  const chess = new Chess();
+  const ratings: RatedMove[] = [];
+  for (const m of moves) {
+    const legal = chess.moves({ verbose: true }).find(
+      (lm) =>
+        lm.from === m.from &&
+        lm.to === m.to &&
+        (m.promotion == null || lm.promotion === m.promotion),
+    );
+    if (!legal) break;
+    ratings.push(rateMove(chess, legal, depth));
+    chess.move(legal);
+  }
+  return ratings;
 }
 
 export function getLegalMoves(chess: Chess, square: string): Square[] {

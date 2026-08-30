@@ -3,10 +3,11 @@ import type { GameOverInfo } from '../types';
 interface GameOverBannerProps {
   info: GameOverInfo | null;
   onNewGame: () => void;
-  onRematch: () => void;
+  onReview: () => void;
+  canReview: boolean;
 }
 
-export default function GameOverBanner({ info, onNewGame, onRematch }: GameOverBannerProps) {
+export default function GameOverBanner({ info, onNewGame, onReview, canReview }: GameOverBannerProps) {
   if (!info) return null;
 
   const title =
@@ -35,9 +36,11 @@ export default function GameOverBanner({ info, onNewGame, onRematch }: GameOverB
           <button className="btn" onClick={onNewGame}>
             New Game
           </button>
-          <button className="btn secondary" onClick={onRematch}>
-            Rematch
-          </button>
+          {canReview && (
+            <button className="btn secondary" onClick={onReview}>
+              Review Game
+            </button>
+          )}
         </div>
       </div>
     </div>

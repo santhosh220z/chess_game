@@ -512,3 +512,83 @@ h3 {
   color: var(--text-secondary);
 }
 
+/* Game review bar */
+.review-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 12px 18px;
+  width: min(100%, 560px);
+}
+
+.review-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.review-counter {
+  font-weight: 600;
+  font-size: 0.95rem;
+  min-width: 90px;
+  text-align: center;
+}
+
+.review-bar .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.review-done {
+  position: static;
+}
+
+/* Move rating badges */
+.rating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.rating-loss {
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.rating-badge.brilliant {
+  background: #d4f5e3;
+  color: #0f7b3a;
+}
+
+.rating-badge.good {
+  background: #e3f0fa;
+  color: #1d6ba8;
+}
+
+.rating-badge.inaccuracy {
+  background: #fdf3d7;
+  color: #b8860b;
+}
+
+.rating-badge.mistake {
+  background: #fde8e0;
+  color: #c0562f;
+}
+
+.rating-badge.blunder {
+  background: #fbe0e0;
+  color: #c03028;
+}
+

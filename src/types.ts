@@ -23,3 +23,29 @@ export interface AiRequest {
 }
 
 export type AiResponse = MoveRecord;
+
+export type MoveRating = 'Brilliant' | 'Good' | 'Inaccuracy' | 'Mistake' | 'Blunder';
+
+export interface RatedMove {
+  from: string;
+  to: string;
+  promotion?: string;
+  san: string;
+  rating: MoveRating;
+  loss: number;
+}
+
+export interface ReviewRequest {
+  kind: 'review';
+  moves: MoveRecord[];
+}
+
+export type WorkerRequest =
+  | ({ kind?: 'ai' } & AiRequest)
+  | ReviewRequest
+  | { token?: number };
+
+export type WorkerResponse =
+  | { token?: number; ok: true; kind: 'ai'; move: AiResponse }
+  | { token?: number; ok: true; kind: 'review'; ratings: RatedMove[] }
+  | { token?: number; ok: false; error: string };

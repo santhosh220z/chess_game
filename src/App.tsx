@@ -6,7 +6,16 @@ import Board from './components/Board';
 import SidePanel from './components/SidePanel';
 import PromotionDialog from './components/PromotionDialog';
 import GameOverBanner from './components/GameOverBanner';
-import type { AiRequest, AiResponse, Difficulty, GameMode, GameOverInfo } from './types';
+import RatingBadge from './components/RatingBadge';
+import type {
+  Difficulty,
+  GameMode,
+  GameOverInfo,
+  MoveRecord,
+  RatedMove,
+  WorkerRequest,
+  WorkerResponse,
+} from './types';
 
 type PendingPromotion = { from: Square; to: Square } | null;
 
@@ -64,9 +73,20 @@ export default function App() {
   const [pendingPromotion, setPendingPromotion] = useState<PendingPromotion>(null);
   const [thinking, setThinking] = useState(false);
 
+  const [reviewActive, setReviewActive] = useState(false);
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const [ratings, setRatings] = useState<RatedMove[] | null>(null);
+
   const chess = useMemo(() => replay(moves), [moves]);
   const chessRef = useRef(chess);
   chessRef.current = chess;
+
+  // Board reflects the reviewed position while in review mode, otherwise the live game.
+  const displayMoves = useMemo(
+    () => (reviewActive ? moves.slice(0, reviewIndex) : moves),
+    [reviewActive, reviewIndex, moves],
+  );
+  const displayChess = useMemo(() => replay(displayMoves), [displayMoves]);
 
   const playerColor = 'w';
   const gameOver = analyzeGame(chess);
@@ -91,22 +111,29 @@ export default function App() {
     const worker = new Worker(new URL('./engine/ai.worker.ts', import.meta.url), {
       type: 'module',
     });
-    worker.onmessage = (event: MessageEvent<{ ok: boolean; token: number; move?: AiResponse }>) => {
+    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const data = event.data;
       // Always clear the "thinking" indicator once any reply arrives, even on
       // a failure or a stale (superseded) request.
       setThinking(false);
-      if (!data.ok || !data.move) return;
+      if (!data.ok) return;
       // Discard stale responses from superseded requests (e.g. after undo).
       if (data.token !== currentTokenRef.current) return;
+
+      if (data.kind === 'review') {
+        setRatings(data.ratings);
+        return;
+      }
+
+      // AI move response.
       setMoves((list) => {
         const next = new Chess();
         for (const m of list) next.move(m);
         try {
           const move = next.move({
-            from: data.move!.from,
-            to: data.move!.to,
-            promotion: data.move!.promotion,
+            from: data.move.from,
+            to: data.move.to,
+            promotion: data.move.promotion,
           });
           return [...list, move];
         } catch {
@@ -127,9 +154,23 @@ export default function App() {
     if (!worker) return;
     const token = ++currentTokenRef.current;
     setThinking(true);
-    const req: AiRequest = { fen: chessRef.current.fen(), difficulty };
-    worker.postMessage({ ...req, token });
+    const req: WorkerRequest = { fen: chessRef.current.fen(), difficulty, token };
+    worker.postMessage(req);
   }, [difficulty]);
+
+  const requestReview = useCallback(() => {
+    const worker = workerRef.current;
+    if (!worker || moves.length === 0) return;
+    const token = ++currentTokenRef.current;
+    setThinking(true);
+    const moveRecords: MoveRecord[] = moves.map((m) => ({
+      from: m.from as string,
+      to: m.to as string,
+      promotion: m.promotion,
+    }));
+    const req: WorkerRequest = { kind: 'review', moves: moveRecords, token };
+    worker.postMessage(req);
+  }, [moves]);
 
   useEffect(() => {
     if (isAiTurn) triggerAi();
@@ -141,6 +182,7 @@ export default function App() {
   }, []);
 
   const undo = useCallback(() => {
+    if (reviewActive) return;
     currentTokenRef.current += 1; // invalidate any in-flight AI response
     setMoves((list) => {
       const trimmed = list.slice();
@@ -157,7 +199,7 @@ export default function App() {
     clearSelection();
     setPendingPromotion(null);
     setThinking(false);
-  }, [clearSelection, mode]);
+  }, [clearSelection, mode, reviewActive]);
 
   const newGame = useCallback(() => {
     currentTokenRef.current += 1; // invalidate any in-flight AI response
@@ -165,7 +207,30 @@ export default function App() {
     clearSelection();
     setPendingPromotion(null);
     setThinking(false);
+    setReviewActive(false);
+    setReviewIndex(0);
+    setRatings(null);
   }, [clearSelection]);
+
+  const enterReview = useCallback(() => {
+    setReviewActive(true);
+    setReviewIndex(0);
+    requestReview();
+  }, [requestReview]);
+
+  const exitReview = useCallback(() => {
+    setReviewActive(false);
+    setReviewIndex(moves.length);
+    setRatings(null);
+  }, [moves.length]);
+
+  const goPrev = useCallback(() => {
+    setReviewIndex((i) => Math.max(0, i - 1));
+  }, []);
+
+  const goNext = useCallback(() => {
+    setReviewIndex((i) => Math.min(moves.length, i + 1));
+  }, [moves.length]);
 
   const applyMove = useCallback((from: Square, to: Square, promotion?: PieceSymbol) => {
     setMoves((list) => {
@@ -184,7 +249,7 @@ export default function App() {
 
   const handleSquareClick = useCallback(
     (square: Square) => {
-      if (thinking || gameOver || pendingPromotion || isAiTurn) return;
+      if (thinking || gameOver || pendingPromotion || isAiTurn || reviewActive) return;
       const piece = chessRef.current.get(square);
 
       // Promotion path.
@@ -210,24 +275,30 @@ export default function App() {
         clearSelection();
       }
     },
-    [selected, legalTargets, thinking, gameOver, pendingPromotion, isAiTurn, mode, applyMove, clearSelection],
+    [selected, legalTargets, thinking, gameOver, pendingPromotion, isAiTurn, reviewActive, mode, applyMove, clearSelection],
   );
 
-  const checkSquare = getCheckSquare(chess);
+  const checkSquare = getCheckSquare(displayChess);
   const lastMove =
-    moves.length > 0 ? { from: moves[moves.length - 1]!.from, to: moves[moves.length - 1]!.to } : null;
+    displayMoves.length > 0
+      ? { from: displayMoves[displayMoves.length - 1]!.from, to: displayMoves[displayMoves.length - 1]!.to }
+      : null;
 
-  // Captured pieces.
+  // Captured pieces (reflect the displayed position).
   const capturedByWhite: string[] = [];
   const capturedByBlack: string[] = [];
-  for (const m of moves) {
+  for (const m of displayMoves) {
     if (m.captured) {
       if (m.color === 'w') capturedByWhite.push(m.captured);
       else capturedByBlack.push(m.captured);
     }
   }
 
-  const historySan = moves.map((m) => m.san);
+  const historySan = displayMoves.map((m) => m.san);
+
+  // Rating of the move currently being reviewed (move index = reviewIndex, 1-based).
+  const currentRating: RatedMove | undefined =
+    reviewActive && reviewIndex > 0 && ratings ? ratings[reviewIndex - 1] : undefined;
 
   return (
     <div className="app">
@@ -244,7 +315,7 @@ export default function App() {
       <div className="layout">
         <div className="board-wrap">
           <Board
-            chess={chess}
+            chess={displayChess}
             selected={selected}
             legalTargets={legalTargets}
             lastMove={lastMove}
@@ -252,6 +323,35 @@ export default function App() {
             onSquareClick={handleSquareClick}
             boardOrientation="w"
           />
+
+          {reviewActive && (
+            <div className="review-bar">
+              <div className="review-nav">
+                <button type="button" className="btn secondary" onClick={goPrev} disabled={reviewIndex === 0}>
+                  ← Prev
+                </button>
+                <span className="review-counter">
+                  Move {reviewIndex} / {moves.length}
+                </span>
+                <button
+                  type="button"
+                  className="btn secondary"
+                  onClick={goNext}
+                  disabled={reviewIndex >= moves.length}
+                >
+                  Next →
+                </button>
+              </div>
+              {currentRating ? (
+                <RatingBadge rating={currentRating.rating} loss={currentRating.loss} />
+              ) : (
+                reviewIndex > 0 && <span className="captured-label">Analyzing move…</span>
+              )}
+              <button type="button" className="btn back-btn review-done" onClick={exitReview}>
+                Done
+              </button>
+            </div>
+          )}
 
           <div className="controls">
             {mode === 'ai' && (
@@ -272,7 +372,7 @@ export default function App() {
         </div>
 
         <SidePanel
-          turn={chess.turn()}
+          turn={displayChess.turn()}
           capturedByWhite={capturedByWhite}
           capturedByBlack={capturedByBlack}
           history={historySan}
@@ -283,7 +383,7 @@ export default function App() {
 
       {pendingPromotion && (
         <PromotionDialog
-          color={chessRef.current.get(pendingPromotion.from)?.color ?? 'w'}
+          color={displayChess.get(pendingPromotion.from)?.color ?? 'w'}
           onSelect={(piece) => {
             const p = pendingPromotion;
             setPendingPromotion(null);
@@ -293,7 +393,14 @@ export default function App() {
         />
       )}
 
-      {gameOver && <GameOverBanner info={gameOver} onNewGame={newGame} onRematch={newGame} />}
+      {gameOver && !reviewActive && (
+        <GameOverBanner
+          info={gameOver}
+          onNewGame={newGame}
+          onReview={enterReview}
+          canReview={moves.length > 0}
+        />
+      )}
     </div>
   );
 }
