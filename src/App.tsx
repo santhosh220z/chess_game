@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Chess } from 'chess.js';
 import type { Move, PieceSymbol, Square } from 'chess.js';
 import Board from './components/Board';
@@ -74,6 +74,9 @@ export default function App() {
   // Mode is chosen on the landing page and carried here via router state.
   const location = useLocation();
   const mode: GameMode = (location.state as { mode?: GameMode } | null)?.mode ?? 'ai';
+
+  const navigate = useNavigate();
+  const goHome = useCallback(() => navigate('/'), [navigate]);
 
   // The computer only plays when the active side is not White (the human) in AI mode.
   const isAiTurn = mode === 'ai' && chess.turn() !== playerColor && !gameOver;
@@ -229,11 +232,13 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Chess</h1>
-        <p>{mode === 'ai' ? 'Play against the computer' : '2 Players — pass and play'}</p>
-        <Link className="home-link" to="/">
-          Home
-        </Link>
+        <button type="button" className="btn back-btn" onClick={goHome}>
+          ← Back
+        </button>
+        <div className="header-titles">
+          <h1>Chess</h1>
+          <p>{mode === 'ai' ? 'Play against the computer' : '2 Players — pass and play'}</p>
+        </div>
       </header>
 
       <div className="layout">

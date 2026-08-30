@@ -44,6 +44,7 @@ h3 {
 }
 
 .app-header {
+  position: relative;
   text-align: center;
   margin-bottom: 28px;
 }
@@ -57,6 +58,24 @@ h3 {
 .app-header p {
   margin: 0;
   color: var(--text-secondary);
+}
+
+.back-btn {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Mobile: keep the back button from overlapping the centered title */
+@media (max-width: 600px) {
+  .back-btn {
+    position: static;
+    margin: 0 auto 12px;
+  }
 }
 
 .layout {
@@ -491,19 +510,5 @@ h3 {
 .mode-desc {
   font-size: 0.9rem;
   color: var(--text-secondary);
-}
-
-/* Home link in the game header */
-.home-link {
-  display: inline-block;
-  margin-top: 8px;
-  color: var(--accent);
-  font-weight: 600;
-  font-size: 0.9rem;
-  text-decoration: none;
-}
-
-.home-link:hover {
-  text-decoration: underline;
 }
 
